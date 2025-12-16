@@ -20,9 +20,22 @@ if TYPE_CHECKING:
         return lambda name: fn
 else:
     try:
-        from torch.library import register_fake
+        from torch.library import register_fake as _register_fake
     except ImportError:
-        from torch.library import impl_abstract as register_fake
+        from torch.library import impl_abstract as _register_fake
+    
+    # Wrapper to handle already-registered operators gracefully
+    # This can happen in subprocess scenarios where operators are registered multiple times
+    def register_fake(name):
+        def decorator(fn):
+            try:
+                return _register_fake(name)(fn)
+            except RuntimeError as e:
+                if "already has an fake impl registered" in str(e):
+                    # Operator already registered, which is fine - just return the function
+                    return fn
+                raise
+        return decorator
 
 
 # page attention ops
