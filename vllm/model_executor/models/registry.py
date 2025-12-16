@@ -506,6 +506,20 @@ _VLLM_MODELS = {
 # when we use par format to pack things together, sys.executable
 # might not be the target we want to run.
 _SUBPROCESS_COMMAND = [sys.executable, "-m", "vllm.model_executor.models.registry"]
+# _SUBPROCESS_COMMAND = [
+#     sys.executable,
+#     "-c",
+#     (
+#         "import sys; "
+#         # Clear modules BEFORE any imports to ensure clean state
+#         "modules_to_clear = ['vllm.model_executor.models.registry', 'vllm.model_executor.models', 'vllm.model_executor', 'vllm._custom_ops']; "
+#         "[sys.modules.pop(m, None) for m in modules_to_clear]; "
+#         # Now import and run the module normally
+#         "import runpy; "
+#         "runpy.run_module('vllm.model_executor.models.registry', run_name='__main__')"
+#     )
+# ]
+
 
 _PREVIOUSLY_SUPPORTED_MODELS = {
     "MotifForCausalLM": "0.10.2",
@@ -1171,6 +1185,20 @@ def _run_in_subprocess(fn: Callable[[], _T]) -> _T:
 
 
 def _run() -> None:
+    # Clear any modules that might have been partially loaded in the parent process
+    # This ensures the subprocess starts with a clean state, avoiding "found in
+    # sys.modules after import of package" warnings and "operator already registered" errors.
+    # Since this function runs in a NEW subprocess, it's safe to clear these modules.
+    # modules_to_clear = [
+    #     "vllm.model_executor.models.registry",
+    #     "vllm.model_executor.models",
+    #     "vllm.model_executor",
+    #     "vllm._custom_ops",
+    # ]
+    # for module_name in modules_to_clear:
+    #     if module_name in sys.modules:
+    #         del sys.modules[module_name]
+
     # Setup plugins
     from vllm.plugins import load_general_plugins
 
